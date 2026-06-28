@@ -23,7 +23,8 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   int _currentIndex = 0;
   int _score = 0;
-  int? _selectedIndex;
+  int? _selectedIndex; // Locked-in selected index after submission
+  int? _tempSelectedIndex; // Temporarily selected index before submission
   bool _answered = false;
   final List<AnswerRecord> _records = [];
 
@@ -75,10 +76,9 @@ class _QuizScreenState extends State<QuizScreen> {
     _cancelTimer();
     if (_answered) return;
 
-    // Time expired: auto-select nothing (skipped)
-    final points = 0;
-
+    // Time expired: record as skipped (null selectedIndex)
     setState(() {
+      _tempSelectedIndex = null;
       _selectedIndex = null;
       _answered = true;
       _streak = 0; // Break streak
@@ -90,16 +90,23 @@ class _QuizScreenState extends State<QuizScreen> {
         selectedIndex: null,
         correctIndex: _currentQuestion.correctIndex,
         isCorrect: false,
-        pointsEarned: points,
+        pointsEarned: 0,
       ),
     );
   }
 
   void _selectAnswer(int index) {
     if (_answered) return;
+    setState(() {
+      _tempSelectedIndex = index;
+    });
+  }
+
+  void _submitAnswer() {
+    if (_answered || _tempSelectedIndex == null) return;
     _cancelTimer();
 
-    final isCorrect = index == _currentQuestion.correctIndex;
+    final isCorrect = _tempSelectedIndex == _currentQuestion.correctIndex;
     int points = isCorrect ? _currentQuestion.difficulty.points : 0;
 
     // Streak tracker logic
@@ -119,7 +126,7 @@ class _QuizScreenState extends State<QuizScreen> {
     }
 
     setState(() {
-      _selectedIndex = index;
+      _selectedIndex = _tempSelectedIndex;
       _answered = true;
       _streak = newStreak;
       _score += (points + bonus);
@@ -128,7 +135,7 @@ class _QuizScreenState extends State<QuizScreen> {
     _records.add(
       AnswerRecord(
         questionId: _currentQuestion.id,
-        selectedIndex: index,
+        selectedIndex: _selectedIndex,
         correctIndex: _currentQuestion.correctIndex,
         isCorrect: isCorrect,
         pointsEarned: points + bonus,
@@ -136,11 +143,30 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
+  void _skipQuestion() {
+    if (_answered) return;
+    _cancelTimer();
+
+    // Skip logs a null selection record
+    _records.add(
+      AnswerRecord(
+        questionId: _currentQuestion.id,
+        selectedIndex: null,
+        correctIndex: _currentQuestion.correctIndex,
+        isCorrect: false,
+        pointsEarned: 0,
+      ),
+    );
+
+    _nextQuestion();
+  }
+
   void _nextQuestion() {
     if (_currentIndex < widget.questions.length - 1) {
       setState(() {
         _currentIndex++;
         _selectedIndex = null;
+        _tempSelectedIndex = null;
         _answered = false;
       });
       _startTimer();
@@ -156,8 +182,6 @@ class _QuizScreenState extends State<QuizScreen> {
       (sum, q) => sum + q.difficulty.points,
     );
 
-    // Dynamic maxScore calculation should include possible streak bonuses
-    // Let's keep it clean
     final result = QuizResult(
       totalQuestions: widget.questions.length,
       correctAnswers: _records.where((r) => r.isCorrect).length,
@@ -176,7 +200,9 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   AnswerState _stateForOption(int index) {
-    if (!_answered) return AnswerState.neutral;
+    if (!_answered) {
+      return _tempSelectedIndex == index ? AnswerState.selected : AnswerState.neutral;
+    }
     if (index == _currentQuestion.correctIndex) {
       return _selectedIndex == index
           ? AnswerState.correct
@@ -205,22 +231,36 @@ class _QuizScreenState extends State<QuizScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // --- CUSTOM PRESET APP BAR ---
+            // --- TOP HEADER APP BAR ---
             Container(
               color: isDark ? const Color(0xFF0F172A) : AppTheme.primaryBlue,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   IconButton(
                     onPressed: () {
-                      _cancelTimer();
-                      Navigator.pop(context);
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Quit Exam', style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.bold)),
+                          content: const Text('Are you sure you want to quit the exam? Your progress will be lost.', style: TextStyle(fontFamily: 'Nunito')),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel', style: TextStyle(fontFamily: 'Nunito')),
+                            ),
+                            FilledButton(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                context.go(AppRouter.home);
+                              },
+                              child: const Text('Quit', style: TextStyle(fontFamily: 'Nunito')),
+                            ),
+                          ],
+                        ),
+                      );
                     },
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
                   ),
                   Expanded(
                     child: Text(
@@ -234,7 +274,7 @@ class _QuizScreenState extends State<QuizScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 48), // Spacer balance
+                  const SizedBox(width: 48), // Balancing spacer
                 ],
               ),
             ),
@@ -296,11 +336,10 @@ class _QuizScreenState extends State<QuizScreen> {
                             Text(
                               '$_timeLeft',
                               style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                                color: timerColor,
-                                fontFamily: 'Nunito',
-                              ),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  color: timerColor,
+                                  fontFamily: 'Nunito'),
                             ),
                           ],
                         ),
@@ -424,10 +463,66 @@ class _QuizScreenState extends State<QuizScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
-                    // --- IMMEDIATE FEEDBACK / EXPLANATION CARD ---
-                    if (_answered) ...[
+                    // --- CONTROLS SECTION ---
+                    if (!_answered) ...[
+                      Row(
+                        children: [
+                          // Skip Button
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _skipQuestion,
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                                  width: 1.5,
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              icon: const Icon(Icons.skip_next_rounded, size: 20),
+                              label: const Text(
+                                'Skip',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  fontFamily: 'Nunito',
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          // Submit Button
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _tempSelectedIndex == null ? null : _submitAnswer,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isDark ? const Color(0xFF6366F1) : AppTheme.primaryBlue,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 2,
+                              ),
+                              icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                              label: const Text(
+                                'Submit',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                  fontFamily: 'Nunito',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                    ] else ...[
+                      // --- IMMEDIATE FEEDBACK / EXPLANATION CARD ---
                       AnimatedOpacity(
                         opacity: _answered ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 300),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-enum AnswerState { neutral, correct, wrong, revealed }
+enum AnswerState { neutral, correct, wrong, revealed, selected }
 
 class AnswerButton extends StatefulWidget {
   final String label;
@@ -54,6 +54,8 @@ class _AnswerButtonState extends State<AnswerButton>
         return AppTheme.wrongBg;
       case AnswerState.revealed:
         return AppTheme.correctBg;
+      case AnswerState.selected:
+        return const Color(0xFFEEF2FF); // Light Indigo/Blue for selected state
       case AnswerState.neutral:
         return AppTheme.neutralBg;
     }
@@ -67,6 +69,8 @@ class _AnswerButtonState extends State<AnswerButton>
         return AppTheme.wrongBorder;
       case AnswerState.revealed:
         return AppTheme.correctBorder;
+      case AnswerState.selected:
+        return const Color(0xFF6366F1); // Indigo Border for selected state
       case AnswerState.neutral:
         return AppTheme.neutralBorder;
     }
@@ -80,6 +84,8 @@ class _AnswerButtonState extends State<AnswerButton>
         return AppTheme.wrongBorder;
       case AnswerState.revealed:
         return AppTheme.correctBorder;
+      case AnswerState.selected:
+        return const Color(0xFF6366F1); // Indigo letter bg
       case AnswerState.neutral:
         return AppTheme.primaryBlue.withAlpha(11);
     }
@@ -90,6 +96,7 @@ class _AnswerButtonState extends State<AnswerButton>
       case AnswerState.correct:
       case AnswerState.wrong:
       case AnswerState.revealed:
+      case AnswerState.selected:
         return Colors.white;
       case AnswerState.neutral:
         return AppTheme.primaryBlue;
@@ -104,6 +111,7 @@ class _AnswerButtonState extends State<AnswerButton>
         return Icons.cancel_rounded;
       case AnswerState.revealed:
         return Icons.check_circle_rounded;
+      case AnswerState.selected:
       case AnswerState.neutral:
         return null;
     }
@@ -116,6 +124,7 @@ class _AnswerButtonState extends State<AnswerButton>
         return AppTheme.correctBorder;
       case AnswerState.wrong:
         return AppTheme.wrongBorder;
+      case AnswerState.selected:
       case AnswerState.neutral:
         return Colors.transparent;
     }
@@ -123,7 +132,29 @@ class _AnswerButtonState extends State<AnswerButton>
 
   @override
   Widget build(BuildContext context) {
-    final bool isEnabled = widget.state == AnswerState.neutral;
+    final bool isEnabled = widget.state == AnswerState.neutral || widget.state == AnswerState.selected;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Dark-mode adjustments for background colors
+    Color finalBgColor = _bgColor;
+    if (isDark) {
+      if (widget.state == AnswerState.neutral) {
+        finalBgColor = const Color(0xFF1E293B);
+      } else if (widget.state == AnswerState.selected) {
+        finalBgColor = const Color(0xFF6366F1).withOpacity(0.15);
+      }
+    }
+
+    Color textThemeColor;
+    if (widget.state == AnswerState.neutral) {
+      textThemeColor = isDark ? Colors.white70 : const Color(0xFF1A2340);
+    } else if (widget.state == AnswerState.wrong) {
+      textThemeColor = AppTheme.errorRed;
+    } else if (widget.state == AnswerState.correct || widget.state == AnswerState.revealed) {
+      textThemeColor = AppTheme.successGreen;
+    } else {
+      textThemeColor = isDark ? Colors.white : const Color(0xFF6366F1);
+    }
 
     return GestureDetector(
       onTapDown: isEnabled ? (_) => _controller.forward() : null,
@@ -138,7 +169,7 @@ class _AnswerButtonState extends State<AnswerButton>
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: _bgColor,
+            color: finalBgColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: _borderColor, width: 1.5),
           ),
@@ -173,11 +204,7 @@ class _AnswerButtonState extends State<AnswerButton>
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: widget.state == AnswerState.neutral
-                        ? const Color(0xFF1A2340)
-                        : widget.state == AnswerState.wrong
-                        ? AppTheme.errorRed
-                        : AppTheme.successGreen,
+                    color: textThemeColor,
                     fontFamily: 'Nunito',
                     height: 1.3,
                   ),

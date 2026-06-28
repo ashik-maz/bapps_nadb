@@ -29,13 +29,27 @@ class _ReviewCardState extends State<ReviewCard> with SingleTickerProviderStateM
     final wasSkipped = widget.record.selectedIndex == null;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final headerBgColor = isCorrect
-        ? const Color(0xFFE8F5E9).withOpacity(isDark ? 0.08 : 0.8)
-        : const Color(0xFFFFEBEE).withOpacity(isDark ? 0.08 : 0.8);
+    final Color headerBgColor;
+    final Color borderThemeColor;
+    final IconData statusIcon;
+    final Color statusIconColor;
 
-    final borderThemeColor = isCorrect
-        ? AppTheme.correctBorder.withOpacity(0.4)
-        : AppTheme.wrongBorder.withOpacity(0.4);
+    if (isCorrect) {
+      headerBgColor = const Color(0xFFE8F5E9).withOpacity(isDark ? 0.08 : 0.8);
+      borderThemeColor = AppTheme.correctBorder.withOpacity(0.4);
+      statusIcon = Icons.check_rounded;
+      statusIconColor = AppTheme.correctBorder;
+    } else if (wasSkipped) {
+      headerBgColor = const Color(0xFFFFF8E1).withOpacity(isDark ? 0.08 : 0.8); // Light Amber
+      borderThemeColor = AppTheme.warningAmber.withOpacity(0.4);
+      statusIcon = Icons.help_outline_rounded;
+      statusIconColor = AppTheme.warningAmber;
+    } else {
+      headerBgColor = const Color(0xFFFFEBEE).withOpacity(isDark ? 0.08 : 0.8);
+      borderThemeColor = AppTheme.wrongBorder.withOpacity(0.4);
+      statusIcon = Icons.close_rounded;
+      statusIconColor = AppTheme.wrongBorder;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -45,7 +59,11 @@ class _ReviewCardState extends State<ReviewCard> with SingleTickerProviderStateM
         border: Border.all(color: borderThemeColor),
         boxShadow: [
           BoxShadow(
-            color: (isCorrect ? AppTheme.successGreen : AppTheme.errorRed)
+            color: (isCorrect
+                    ? AppTheme.successGreen
+                    : wasSkipped
+                        ? AppTheme.warningAmber
+                        : AppTheme.errorRed)
                 .withOpacity(isDark ? 0.03 : 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
@@ -72,15 +90,15 @@ class _ReviewCardState extends State<ReviewCard> with SingleTickerProviderStateM
               ),
               child: Row(
                 children: [
-                  Container(
+                   Container(
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: isCorrect ? AppTheme.correctBorder : AppTheme.wrongBorder,
+                      color: statusIconColor,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      isCorrect ? Icons.check_rounded : Icons.close_rounded,
+                      statusIcon,
                       color: Colors.white,
                       size: 16,
                     ),
@@ -150,7 +168,7 @@ class _ReviewCardState extends State<ReviewCard> with SingleTickerProviderStateM
                   if (wasSkipped) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'Time Expired / Not Answered',
+                      'Question Skipped / Not Answered',
                       style: TextStyle(
                         fontSize: 12,
                         color: isDark ? Colors.white30 : AppTheme.neutralGrey,
@@ -179,14 +197,29 @@ class _ReviewCardState extends State<ReviewCard> with SingleTickerProviderStateM
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              widget.question.explanation!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark ? Colors.white : const Color(0xFF1A2340),
-                                fontFamily: 'Nunito',
-                                height: 1.5,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Solve & Explanation:',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? const Color(0xFF818CF8) : AppTheme.primaryBlue,
+                                    fontFamily: 'Nunito',
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.question.explanation!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.white : const Color(0xFF1A2340),
+                                    fontFamily: 'Nunito',
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],

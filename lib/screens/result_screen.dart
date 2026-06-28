@@ -274,27 +274,38 @@ class _ResultScreenState extends State<ResultScreen>
   }
 
   Widget _buildStatsRow(QuizResult r, bool isDark) {
+    final correctCount = r.answers.where((a) => a.isCorrect).length;
+    final skippedCount = r.answers.where((a) => a.selectedIndex == null).length;
+    final wrongCount = r.answers.where((a) => a.selectedIndex != null && !a.isCorrect).length;
+
     return Row(
       children: [
         _StatChip(
           label: 'Correct',
-          value: '${r.correctAnswers}',
+          value: '$correctCount',
           icon: Icons.check_circle_rounded,
           color: AppTheme.successGreen,
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         _StatChip(
           label: 'Wrong',
-          value: '${r.totalQuestions - r.correctAnswers}',
+          value: '$wrongCount',
           icon: Icons.cancel_rounded,
           color: AppTheme.errorRed,
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
+        _StatChip(
+          label: 'Skipped',
+          value: '$skippedCount',
+          icon: Icons.help_outline_rounded,
+          color: AppTheme.warningAmber,
+        ),
+        const SizedBox(width: 8),
         _StatChip(
           label: 'Ratio',
           value: '${r.totalScore}/${r.maxScore}',
-          icon: Icons.emoji_events_rounded,
-          color: AppTheme.warningAmber,
+          icon: Icons.stars_rounded,
+          color: const Color(0xFF6366F1),
         ),
       ],
     );
