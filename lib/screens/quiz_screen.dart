@@ -199,6 +199,50 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
+  void _showEndExamDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('End Exam Early', style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Are you sure you want to end the exam now? All remaining questions will be marked as skipped, and you will be scored based on your current answers.',
+          style: TextStyle(fontFamily: 'Nunito'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(fontFamily: 'Nunito')),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _endExamEarly();
+            },
+            child: const Text('End & Score', style: TextStyle(fontFamily: 'Nunito')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _endExamEarly() {
+    _cancelTimer();
+    // Fill all remaining unrecorded questions as skipped
+    while (_records.length < widget.questions.length) {
+      final nextQ = widget.questions[_records.length];
+      _records.add(
+        AnswerRecord(
+          questionId: nextQ.id,
+          selectedIndex: null,
+          correctIndex: nextQ.correctIndex,
+          isCorrect: false,
+          pointsEarned: 0,
+        ),
+      );
+    }
+    _finishQuiz();
+  }
+
   AnswerState _stateForOption(int index) {
     if (!_answered) {
       return _tempSelectedIndex == index ? AnswerState.selected : AnswerState.neutral;
@@ -274,7 +318,22 @@ class _QuizScreenState extends State<QuizScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 48), // Balancing spacer
+                  TextButton.icon(
+                    onPressed: _showEndExamDialog,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    ),
+                    icon: const Icon(Icons.flag_rounded, size: 18),
+                    label: const Text(
+                      'End',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        fontFamily: 'Nunito',
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
