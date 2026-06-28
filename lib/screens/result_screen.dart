@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/question.dart';
 import '../models/quiz_result.dart';
+import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import '../widgets/confetti_celebration.dart';
 import '../widgets/review_card.dart';
@@ -138,7 +140,7 @@ class _ResultScreenState extends State<ResultScreen>
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
+            onPressed: () => context.go(AppRouter.home),
             icon: const Icon(Icons.home_rounded, color: Colors.white),
           ),
           const Expanded(
@@ -332,7 +334,7 @@ class _ResultScreenState extends State<ResultScreen>
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
+          onPressed: () => context.go(AppRouter.home),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 50),
             side: BorderSide(
