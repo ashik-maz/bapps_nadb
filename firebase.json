@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"quizapps12","appId":"1:918035901733:android:eda0c195d1ae5faee33ecc","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"quizapps12","configurations":{"android":"1:918035901733:android:eda0c195d1ae5faee33ecc","ios":"1:918035901733:ios:03d819c8ef1ae2dde33ecc","macos":"1:918035901733:ios:03d819c8ef1ae2dde33ecc","web":"1:918035901733:web:2c31e86bf7c8e3c5e33ecc","windows":"1:918035901733:web:37067e1967fd3dcfe33ecc"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "quizapps12",
+          "appId": "1:918035901733:android:eda0c195d1ae5faee33ecc",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "quizapps12",
+          "configurations": {
+            "android": "1:918035901733:android:eda0c195d1ae5faee33ecc",
+            "ios": "1:918035901733:ios:03d819c8ef1ae2dde33ecc",
+            "macos": "1:918035901733:ios:03d819c8ef1ae2dde33ecc",
+            "web": "1:918035901733:web:2c31e86bf7c8e3c5e33ecc",
+            "windows": "1:918035901733:web:37067e1967fd3dcfe33ecc"
+          }
+        }
+      }
+    }
+  }
+}
