@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "918035901733",
+    "project_id": "quizapps12",
+    "storage_bucket": "quizapps12.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:918035901733:android:eda0c195d1ae5faee33ecc",
+        "android_client_info": {
+          "package_name": "com.srpallab.quiz_master"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtM7STvzsqaLXyfOpSivdP51PkA3LAtuQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
