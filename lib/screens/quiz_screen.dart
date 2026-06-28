@@ -23,9 +23,7 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   int _currentIndex = 0;
   int _score = 0;
-  int? _selectedIndex; // Locked-in selected index after submission
-  int? _tempSelectedIndex; // Temporarily selected index before submission
-  bool _answered = false;
+  int? _tempSelectedIndex; // Selected index before moving to next question
   final List<AnswerRecord> _records = [];
 
   // Gamification state
@@ -74,16 +72,9 @@ class _QuizScreenState extends State<QuizScreen> {
 
   void _onTimeExpired() {
     _cancelTimer();
-    if (_answered) return;
+    if (_records.length > _currentIndex) return;
 
-    // Time expired: record as skipped (null selectedIndex)
-    setState(() {
-      _tempSelectedIndex = null;
-      _selectedIndex = null;
-      _answered = true;
-      _streak = 0; // Break streak
-    });
-
+    // Time expired: record as skipped
     _records.add(
       AnswerRecord(
         questionId: _currentQuestion.id,
@@ -93,17 +84,18 @@ class _QuizScreenState extends State<QuizScreen> {
         pointsEarned: 0,
       ),
     );
+    _streak = 0; // Break streak
+
+    _nextQuestion();
   }
 
   void _selectAnswer(int index) {
-    if (_answered) return;
     setState(() {
       _tempSelectedIndex = index;
     });
   }
 
-  void _submitAnswer() {
-    if (_answered || _tempSelectedIndex == null) return;
+  void _proceedWithAnswer() {
     _cancelTimer();
 
     final isCorrect = _tempSelectedIndex == _currentQuestion.correctIndex;
@@ -112,91 +104,36 @@ class _QuizScreenState extends State<QuizScreen> {
     // Streak tracker logic
     int newStreak = _streak;
     int bonus = 0;
-    if (isCorrect) {
-      newStreak++;
-      if (newStreak > _maxStreak) {
-        _maxStreak = newStreak;
-      }
-      // Every 3 correct in a row grants +5 pts streak bonus
-      if (newStreak > 0 && newStreak % 3 == 0) {
-        bonus = 5;
+    if (_tempSelectedIndex != null) {
+      if (isCorrect) {
+        newStreak++;
+        if (newStreak > _maxStreak) {
+          _maxStreak = newStreak;
+        }
+        if (newStreak > 0 && newStreak % 3 == 0) {
+          bonus = 5;
+        }
+      } else {
+        newStreak = 0;
       }
     } else {
-      newStreak = 0;
+      newStreak = 0; // Skip breaks streak
     }
-
-    setState(() {
-      _selectedIndex = _tempSelectedIndex;
-      _answered = true;
-      _streak = newStreak;
-      _score += (points + bonus);
-    });
 
     _records.add(
       AnswerRecord(
         questionId: _currentQuestion.id,
-        selectedIndex: _selectedIndex,
+        selectedIndex: _tempSelectedIndex,
         correctIndex: _currentQuestion.correctIndex,
         isCorrect: isCorrect,
         pointsEarned: points + bonus,
       ),
     );
-  }
 
-  void _skipQuestion() {
-    if (_answered) return;
-    _cancelTimer();
-
-    // Skip logs a null selection record
-    _records.add(
-      AnswerRecord(
-        questionId: _currentQuestion.id,
-        selectedIndex: null,
-        correctIndex: _currentQuestion.correctIndex,
-        isCorrect: false,
-        pointsEarned: 0,
-      ),
-    );
+    _score += (points + bonus);
+    _streak = newStreak;
 
     _nextQuestion();
-  }
-
-  void _nextQuestion() {
-    if (_currentIndex < widget.questions.length - 1) {
-      setState(() {
-        _currentIndex++;
-        _selectedIndex = null;
-        _tempSelectedIndex = null;
-        _answered = false;
-      });
-      _startTimer();
-    } else {
-      _finishQuiz();
-    }
-  }
-
-  void _finishQuiz() {
-    _cancelTimer();
-    final maxScore = widget.questions.fold<int>(
-      0,
-      (sum, q) => sum + q.difficulty.points,
-    );
-
-    final result = QuizResult(
-      totalQuestions: widget.questions.length,
-      correctAnswers: _records.where((r) => r.isCorrect).length,
-      totalScore: _score,
-      maxScore: maxScore,
-      answers: _records,
-    );
-
-    // Save history statistics in provider
-    context.read<QuizProvider>().recordQuizResult(result);
-
-    context.go(
-      AppRouter.result,
-      extra: {'result': result, 'questions': widget.questions},
-    );
   }
 
   void _showEndExamDialog() {
@@ -243,17 +180,44 @@ class _QuizScreenState extends State<QuizScreen> {
     _finishQuiz();
   }
 
+  void _nextQuestion() {
+    if (_currentIndex < widget.questions.length - 1) {
+      setState(() {
+        _currentIndex++;
+        _tempSelectedIndex = null;
+      });
+      _startTimer();
+    } else {
+      _finishQuiz();
+    }
+  }
+
+  void _finishQuiz() {
+    _cancelTimer();
+    final maxScore = widget.questions.fold<int>(
+      0,
+      (sum, q) => sum + q.difficulty.points,
+    );
+
+    final result = QuizResult(
+      totalQuestions: widget.questions.length,
+      correctAnswers: _records.where((r) => r.isCorrect).length,
+      totalScore: _score,
+      maxScore: maxScore,
+      answers: _records,
+    );
+
+    // Save history statistics in provider
+    context.read<QuizProvider>().recordQuizResult(result);
+
+    context.go(
+      AppRouter.result,
+      extra: {'result': result, 'questions': widget.questions},
+    );
+  }
+
   AnswerState _stateForOption(int index) {
-    if (!_answered) {
-      return _tempSelectedIndex == index ? AnswerState.selected : AnswerState.neutral;
-    }
-    if (index == _currentQuestion.correctIndex) {
-      return _selectedIndex == index
-          ? AnswerState.correct
-          : AnswerState.revealed;
-    }
-    if (index == _selectedIndex) return AnswerState.wrong;
-    return AnswerState.neutral;
+    return _tempSelectedIndex == index ? AnswerState.selected : AnswerState.neutral;
   }
 
   static const List<String> _letters = ['A', 'B', 'C', 'D'];
@@ -270,6 +234,17 @@ class _QuizScreenState extends State<QuizScreen> {
         : _timeLeft > 3
             ? AppTheme.warningAmber
             : AppTheme.errorRed;
+
+    // Skip/Next Button label configuration
+    String nextLabel;
+    IconData nextIcon;
+    if (_tempSelectedIndex == null) {
+      nextLabel = isLast ? 'Skip & Finish' : 'Skip / Next';
+      nextIcon = isLast ? Icons.emoji_events_rounded : Icons.skip_next_rounded;
+    } else {
+      nextLabel = isLast ? 'Finish Exam' : 'Next';
+      nextIcon = isLast ? Icons.emoji_events_rounded : Icons.arrow_forward_rounded;
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -525,166 +500,60 @@ class _QuizScreenState extends State<QuizScreen> {
                     const SizedBox(height: 24),
 
                     // --- CONTROLS SECTION ---
-                    if (!_answered) ...[
-                      Row(
-                        children: [
-                          // Skip Button
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _skipQuestion,
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                                  width: 1.5,
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
+                    Row(
+                      children: [
+                        // End Exam Button (Outlined, Red themed for alert status)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _showEndExamDialog,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.errorRed,
+                              side: const BorderSide(
+                                color: AppTheme.errorRed,
+                                width: 1.5,
                               ),
-                              icon: const Icon(Icons.skip_next_rounded, size: 20),
-                              label: const Text(
-                                'Skip',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  fontFamily: 'Nunito',
-                                ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 14),
-                          // Submit Button
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _tempSelectedIndex == null ? null : _submitAnswer,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isDark ? const Color(0xFF6366F1) : AppTheme.primaryBlue,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                elevation: 2,
-                              ),
-                              icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
-                              label: const Text(
-                                'Submit',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15,
-                                  fontFamily: 'Nunito',
-                                ),
+                            icon: const Icon(Icons.stop_circle_rounded, size: 20),
+                            label: const Text(
+                              'End Exam',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                fontFamily: 'Nunito',
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                    ] else ...[
-                      // --- IMMEDIATE FEEDBACK / EXPLANATION CARD ---
-                      AnimatedOpacity(
-                        opacity: _answered ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: _selectedIndex == _currentQuestion.correctIndex
-                                ? const Color(0xFFE8F5E9)
-                                : _selectedIndex == null
-                                    ? const Color(0xFFFFF8E1)
-                                    : const Color(0xFFFFEBEE),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _selectedIndex == _currentQuestion.correctIndex
-                                  ? const Color(0xFF81C784).withOpacity(0.5)
-                                  : _selectedIndex == null
-                                      ? const Color(0xFFFFD54F).withOpacity(0.5)
-                                      : const Color(0xFFE57373).withOpacity(0.5),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    _selectedIndex == _currentQuestion.correctIndex
-                                        ? Icons.check_circle_rounded
-                                        : _selectedIndex == null
-                                            ? Icons.hourglass_empty_rounded
-                                            : Icons.cancel_rounded,
-                                    color: _selectedIndex == _currentQuestion.correctIndex
-                                        ? AppTheme.successGreen
-                                        : _selectedIndex == null
-                                            ? AppTheme.warningAmber
-                                            : AppTheme.errorRed,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _selectedIndex == _currentQuestion.correctIndex
-                                        ? 'Correct Answer!'
-                                        : _selectedIndex == null
-                                            ? 'Time Expired!'
-                                            : 'Wrong Answer!',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14,
-                                      fontFamily: 'Nunito',
-                                      color: _selectedIndex == _currentQuestion.correctIndex
-                                          ? AppTheme.successGreen
-                                          : _selectedIndex == null
-                                              ? AppTheme.warningAmber
-                                              : AppTheme.errorRed,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (_currentQuestion.explanation != null) ...[
-                                const SizedBox(height: 10),
-                                Text(
-                                  _currentQuestion.explanation!,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontFamily: 'Nunito',
-                                    color: Color(0xFF1E293B),
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
-                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      // NEXT BUTTON
-                      ElevatedButton(
-                        onPressed: _nextQuestion,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDark ? const Color(0xFF6366F1) : AppTheme.primaryBlue,
-                          minimumSize: const Size(double.infinity, 52),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                        const SizedBox(width: 14),
+                        // Skip / Next Button
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _proceedWithAnswer,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark ? const Color(0xFF6366F1) : AppTheme.primaryBlue,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
+                              elevation: 2,
+                            ),
+                            icon: Icon(nextIcon, size: 20),
+                            label: Text(
+                              nextLabel,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                fontFamily: 'Nunito',
+                              ),
+                            ),
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              isLast ? 'Complete & Score' : 'Next Question',
-                              style: const TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(
-                              isLast ? Icons.emoji_events_rounded : Icons.arrow_forward_rounded,
-                              size: 18,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+                      ],
+                    ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
