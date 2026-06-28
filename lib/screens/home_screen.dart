@@ -25,14 +25,17 @@ class _HomeScreenState extends State<HomeScreen> {
   // Local categories
   final List<String> _localCategories = ['All', 'Layout', 'Responsive', 'Styling', 'Theming'];
 
-  // Global API categories (mock category IDs for selection)
-  final List<Map<String, dynamic>> _globalCategories = [
-    {'name': 'All', 'id': null},
-    {'name': 'General Knowledge', 'id': 9},
-    {'name': 'Science & Nature', 'id': 17},
-    {'name': 'Computers', 'id': 18},
-    {'name': 'Sports', 'id': 21},
-    {'name': 'History', 'id': 23},
+  // Global IT/CSE categories (retrieved from Firestore)
+  final List<String> _globalCategories = [
+    'All',
+    'DBMS',
+    'Operating System',
+    'Networking',
+    'Data Structures',
+    'Algorithms',
+    'OOP',
+    'Digital Logic',
+    'Software Engineering'
   ];
 
   void _onSignOut() {
@@ -88,21 +91,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
       context.push('/quiz/$_selectedCategory Challenge', extra: questions);
     } else {
-      // Fetch dynamic questions from OpenTDB
+      // Fetch dynamic questions from Firestore
       final scaffoldMessenger = ScaffoldMessenger.of(context);
       final router = GoRouter.of(context);
-
-      // Find API category ID if selected
-      int? categoryId;
-      if (_selectedCategory != 'All') {
-        final cat = _globalCategories.firstWhere((c) => c['name'] == _selectedCategory, orElse: () => _globalCategories.first);
-        categoryId = cat['id'];
-      }
 
       // Trigger fetch
       final fetched = await quizProvider.fetchQuestions(
         amount: _questionCount,
-        categoryId: categoryId,
+        category: _selectedCategory,
         difficulty: _selectedDifficulty,
       );
 
@@ -128,9 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = themeProvider.isDarkMode;
 
     // Build categories list based on mode
-    final categoriesList = _isLocalMode
-        ? _localCategories
-        : _globalCategories.map((c) => c['name'] as String).toList();
+    final categoriesList = _isLocalMode ? _localCategories : _globalCategories;
 
     // Dynamically calculate Header stats based on Local questions
     final localQuestionsCount = QuestionsData.flutterQuestions.length;
@@ -146,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onProfileTap: _onSignOut,
               onThemeToggle: themeProvider.toggleTheme,
               isDarkMode: isDark,
-              totalQuestions: _isLocalMode ? localQuestionsCount : 100, // mock size for API pool
+              totalQuestions: _isLocalMode ? localQuestionsCount : 200, // Firestore question pool size
               totalCategories: _isLocalMode ? localCategoriesCount : _globalCategories.length - 1,
               maxScore: _isLocalMode ? localMaxScore : 500,
             ),
@@ -177,20 +171,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () => setState(() {
                               _isLocalMode = true;
                               _selectedCategory = 'All';
+                              _questionCount = 10; // Default local count
                             }),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _ModeCard(
-                            title: 'Global Trivia',
-                            subtitle: 'Live API arena',
-                            icon: Icons.public_rounded,
+                            title: 'CSE / IT Exam',
+                            subtitle: 'Firestore Arena',
+                            icon: Icons.school_rounded,
                             isSelected: !_isLocalMode,
                             isDark: isDark,
                             onTap: () => setState(() {
                               _isLocalMode = false;
                               _selectedCategory = 'All';
+                              _questionCount = 25; // Default for IT exam attempts
                             }),
                           ),
                         ),
@@ -305,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           // QUESTION LENGTH SELECTOR
                           Text(
-                            'Question Count: $_questionCount',
+                            'Question Count: $_questionCount ${_isLocalMode ? "" : "(25 Recommended for Exam)"}',
                             style: theme.textTheme.labelLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -313,8 +309,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           Slider(
                             value: _questionCount.toDouble(),
                             min: 5,
-                            max: 20,
-                            divisions: 3,
+                            max: 30,
+                            divisions: 5,
                             label: '$_questionCount',
                             activeColor: isDark ? const Color(0xFF6366F1) : theme.primaryColor,
                             onChanged: (v) => setState(() => _questionCount = v.round()),

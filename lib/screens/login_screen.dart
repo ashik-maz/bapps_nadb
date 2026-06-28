@@ -60,6 +60,33 @@ class _LoginScreenState extends State<LoginScreen> {
     await auth.continueAsGuest();
   }
 
+  Future<void> _signInWithGoogle() async {
+    final auth = context.read<AuthProvider>();
+    final success = await auth.signInWithGoogle();
+
+    if (!success && mounted && auth.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  auth.errorMessage!,
+                  style: const TextStyle(fontFamily: 'Nunito'),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFD32F2F),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -215,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     )
                                   : const Text(
-                                      'Sign In',
+                                      'Sign In / Register',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w800,
                                         fontSize: 16,
@@ -256,12 +283,47 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
+                    // Google Sign-In Button
+                    OutlinedButton.icon(
+                      onPressed: auth.isLoading ? null : _signInWithGoogle,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        side: BorderSide(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      icon: Image.network(
+                        'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png',
+                        height: 18,
+                        width: 18,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.g_mobiledata_rounded,
+                          size: 24,
+                          color: Colors.red,
+                        ),
+                      ),
+                      label: const Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Guest Sign-In Button
                     OutlinedButton.icon(
                       onPressed: auth.isLoading ? null : _continueAsGuest,
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 52),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
+                        ),
+                        side: BorderSide(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
                         ),
                       ),
                       icon: const Icon(Icons.person_outline_rounded, size: 20),
