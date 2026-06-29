@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:bcrypt/bcrypt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -37,7 +39,6 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // First attempt to sign in
       await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
@@ -45,27 +46,53 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return true;
     } on FirebaseAuthException catch (e) {
-      // If user does not exist, automatically sign up/create the account
-      if (e.code == 'user-not-found') {
-        try {
-          await _auth.createUserWithEmailAndPassword(
-            email: email.trim(),
-            password: password.trim(),
-          );
-          _setLoading(false);
-          return true;
-        } on FirebaseAuthException catch (signUpError) {
-          _errorMessage = _mapFirebaseError(signUpError.code);
-          _setLoading(false);
-          return false;
-        }
-      } else {
-        _errorMessage = _mapFirebaseError(e.code);
-        _setLoading(false);
-        return false;
-      }
+      _errorMessage = _mapFirebaseError(e.code);
+      _setLoading(false);
+      return false;
     } catch (_) {
       _errorMessage = 'An unexpected authentication error occurred.';
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  Future<bool> registerWithEmail({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    _setLoading(true);
+    _clearError();
+    try {
+      // 1. Create user in Firebase Auth
+      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+
+      final User? user = userCredential.user;
+      if (user != null) {
+        // 2. Hash the password with bcrypt
+        final String passwordHash = BCrypt.hashpw(password, BCrypt.gensalt());
+
+        // 3. Store user details in Firestore
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'name': name.trim(),
+          'email': email.trim().toLowerCase(),
+          'password_hash': passwordHash,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      _setLoading(false);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _mapFirebaseError(e.code);
+      _setLoading(false);
+      return false;
+    } catch (e) {
+      _errorMessage = 'Registration failed: $e';
       _setLoading(false);
       return false;
     }
@@ -139,7 +166,8 @@ class AuthProvider extends ChangeNotifier {
   String _mapFirebaseError(String code) {
     switch (code) {
       case 'user-not-found':
-        return 'No account found with this email.';
+      case 'invalid-credential':
+        return 'No account found with these credentials or password incorrect.';
       case 'wrong-password':
         return 'Incorrect password. Please try again.';
       case 'email-already-in-use':

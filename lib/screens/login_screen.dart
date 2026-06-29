@@ -14,12 +14,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final TextEditingController _passwordCtrl = TextEditingController();
+  final TextEditingController _nameCtrl = TextEditingController();
+  
+  bool _isRegistering = false; // Toggle between Login and Register modes
   bool _obscurePassword = true;
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _nameCtrl.dispose();
     super.dispose();
   }
 
@@ -27,10 +31,16 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final auth = context.read<AuthProvider>();
-    final success = await auth.signInWithEmail(
-      _emailCtrl.text.trim(),
-      _passwordCtrl.text.trim(),
-    );
+    final success = _isRegistering
+        ? await auth.registerWithEmail(
+            name: _nameCtrl.text.trim(),
+            email: _emailCtrl.text.trim(),
+            password: _passwordCtrl.text.trim(),
+          )
+        : await auth.signInWithEmail(
+            _emailCtrl.text.trim(),
+            _passwordCtrl.text.trim(),
+          );
 
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -41,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  auth.errorMessage ?? 'Sign-in failed',
+                  auth.errorMessage ?? (_isRegistering ? 'Registration failed' : 'Sign-in failed'),
                   style: const TextStyle(fontFamily: 'Nunito'),
                 ),
               ),
@@ -58,33 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _continueAsGuest() async {
     final auth = context.read<AuthProvider>();
     await auth.continueAsGuest();
-  }
-
-  Future<void> _signInWithGoogle() async {
-    final auth = context.read<AuthProvider>();
-    final success = await auth.signInWithGoogle();
-
-    if (!success && mounted && auth.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline_rounded, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  auth.errorMessage!,
-                  style: const TextStyle(fontFamily: 'Nunito'),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFFD32F2F),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-    }
   }
 
   @override
@@ -143,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Welcome to Quiz Master',
+                      _isRegistering ? 'Create Your Account' : 'Welcome to Quiz Master',
                       style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.w900,
                         fontFamily: 'Nunito',
@@ -153,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Sign in to test your knowledge or browse offline',
+                      _isRegistering ? 'Register now to start tracking your scores' : 'Sign in to test your knowledge or browse offline',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF546E7A),
                         fontFamily: 'Nunito',
@@ -182,6 +165,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            if (_isRegistering) ...[
+                              AuthTextField(
+                                controller: _nameCtrl,
+                                label: 'Full Name',
+                                hint: 'John Doe',
+                                keyboardType: TextInputType.name,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Name is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                            ],
                             AuthTextField(
                               controller: _emailCtrl,
                               label: 'Email Address',
@@ -241,9 +239,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Text(
-                                      'Sign In / Register',
-                                      style: TextStyle(
+                                  : Text(
+                                      _isRegistering ? 'Register' : 'Sign In',
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.w800,
                                         fontSize: 16,
                                       ),
@@ -254,6 +252,43 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    
+                    // Toggle link: Don't have an account? Register Now
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isRegistering = !_isRegistering;
+                            _formKey.currentState?.reset();
+                          });
+                        },
+                        child: RichText(
+                          text: TextSpan(
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontFamily: 'Nunito',
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF546E7A),
+                            ),
+                            children: [
+                              TextSpan(
+                                text: _isRegistering
+                                    ? 'Already have an account? '
+                                    : 'Don\'t have an account? ',
+                              ),
+                              TextSpan(
+                                text: _isRegistering ? 'Sign In' : 'Register Now',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? const Color(0xFF818CF8) : theme.primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
                     // Guest Option with divider
                     Row(
                       children: [
@@ -283,37 +318,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    // Google Sign-In Button
-                    OutlinedButton.icon(
-                      onPressed: auth.isLoading ? null : _signInWithGoogle,
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 52),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        side: BorderSide(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                        ),
-                      ),
-                      icon: Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png',
-                        height: 18,
-                        width: 18,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
-                          Icons.g_mobiledata_rounded,
-                          size: 24,
-                          color: Colors.red,
-                        ),
-                      ),
-                      label: const Text(
-                        'Continue with Google',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    
                     // Guest Sign-In Button
                     OutlinedButton.icon(
                       onPressed: auth.isLoading ? null : _continueAsGuest,
