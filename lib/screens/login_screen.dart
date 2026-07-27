@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:quiz_master/provider/auth_provider.dart';
@@ -554,7 +555,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextFormField(
                         controller: _passwordCtrl,
                         obscureText: !_isPasswordVisible,
-                        keyboardType: TextInputType.visiblePassword,
+                        keyboardType: TextInputType.text,
+                        autofillHints: const [AutofillHints.password],
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         decoration: InputDecoration(
                           labelText: 'Password',
@@ -648,7 +650,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextFormField(
                         controller: _newPasswordCtrl,
                         obscureText: !_isPasswordVisible,
-                        keyboardType: TextInputType.visiblePassword,
+                        keyboardType: TextInputType.text,
+                        autofillHints: const [AutofillHints.newPassword],
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         decoration: InputDecoration(
                           labelText: 'Create Password',
