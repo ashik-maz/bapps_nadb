@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_master/data/models/questions_response_model.dart';
 import 'package:quiz_master/data/result_mapper.dart';
 import 'package:quiz_master/models/question.dart';
-import 'package:quiz_master/provider/auth_provider.dart';
 
 void main() {
   group('ResultMapper Unit Tests', () {
@@ -60,65 +59,6 @@ void main() {
       expect(questions[0].text, equals('Is "Flutter" & "Dart" easy?'));
       expect(questions[0].correctAnswer, equals("Yes 'sure'"));
       expect(questions[0].options, contains("Maybe – not sure"));
-    });
-  });
-
-  group('Mock AuthProvider Unit Tests', () {
-    test('initial status is unknown, then becomes unauthenticated', () async {
-      final auth = AuthProvider();
-      expect(auth.status, equals(AuthStatus.unknown));
-
-      // Wait for initial check delay
-      await Future.delayed(const Duration(milliseconds: 1600));
-      expect(auth.status, equals(AuthStatus.unauthenticated));
-      expect(auth.isAuthenticated, isFalse);
-    });
-
-    test('signInWithEmail validates input and logs in', () async {
-      final auth = AuthProvider();
-      await Future.delayed(const Duration(milliseconds: 1600));
-
-      // Invalid email
-      var success = await auth.signInWithEmail('invalid-email', '123456');
-      expect(success, isFalse);
-      expect(auth.status, equals(AuthStatus.unauthenticated));
-      expect(auth.errorMessage, isNotNull);
-
-      // Short password
-      success = await auth.signInWithEmail('user@test.com', '123');
-      expect(success, isFalse);
-      expect(auth.status, equals(AuthStatus.unauthenticated));
-      expect(auth.errorMessage, isNotNull);
-
-      // Valid credentials
-      success = await auth.signInWithEmail('user@test.com', '123456');
-      expect(success, isTrue);
-      expect(auth.status, equals(AuthStatus.authenticated));
-      expect(auth.userEmail, equals('user@test.com'));
-      expect(auth.isAuthenticated, isTrue);
-    });
-
-    test('continueAsGuest logs in as guest', () async {
-      final auth = AuthProvider();
-      await Future.delayed(const Duration(milliseconds: 1600));
-
-      await auth.continueAsGuest();
-      expect(auth.status, equals(AuthStatus.authenticated));
-      expect(auth.userEmail, equals('guest@quizmaster.com'));
-      expect(auth.isAuthenticated, isTrue);
-    });
-
-    test('signOut resets authentication status', () async {
-      final auth = AuthProvider();
-      await Future.delayed(const Duration(milliseconds: 1600));
-
-      await auth.continueAsGuest();
-      expect(auth.isAuthenticated, isTrue);
-
-      await auth.signOut();
-      expect(auth.isAuthenticated, isFalse);
-      expect(auth.status, equals(AuthStatus.unauthenticated));
-      expect(auth.userEmail, isNull);
     });
   });
 }

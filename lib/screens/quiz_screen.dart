@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:quiz_master/provider/auth_provider.dart';
 import 'package:quiz_master/provider/quiz_provider.dart';
 import 'package:quiz_master/router/app_router.dart';
+import 'package:quiz_master/services/firestore_service.dart';
 
 import '../models/question.dart';
 import '../models/quiz_result.dart';
@@ -23,16 +25,14 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   int _currentIndex = 0;
   int _score = 0;
-  int? _tempSelectedIndex; // Selected index before moving to next question
+  int? _tempSelectedIndex;
   final List<AnswerRecord> _records = [];
 
-  // Gamification state
   int _streak = 0;
   int _maxStreak = 0;
 
-  // Timer state
   Timer? _timer;
-  int _timeLeft = 15; // 15 seconds per question
+  int _timeLeft = 15;
   static const int _maxTime = 15;
 
   Question get _currentQuestion => widget.questions[_currentIndex];
@@ -74,7 +74,6 @@ class _QuizScreenState extends State<QuizScreen> {
     _cancelTimer();
     if (_records.length > _currentIndex) return;
 
-    // Time expired: record as skipped
     _records.add(
       AnswerRecord(
         questionId: _currentQuestion.id,
@@ -84,7 +83,7 @@ class _QuizScreenState extends State<QuizScreen> {
         pointsEarned: 0,
       ),
     );
-    _streak = 0; // Break streak
+    _streak = 0;
 
     _nextQuestion();
   }
@@ -101,7 +100,6 @@ class _QuizScreenState extends State<QuizScreen> {
     final isCorrect = _tempSelectedIndex == _currentQuestion.correctIndex;
     int points = isCorrect ? _currentQuestion.difficulty.points : 0;
 
-    // Streak tracker logic
     int newStreak = _streak;
     int bonus = 0;
     if (_tempSelectedIndex != null) {
@@ -117,7 +115,7 @@ class _QuizScreenState extends State<QuizScreen> {
         newStreak = 0;
       }
     } else {
-      newStreak = 0; // Skip breaks streak
+      newStreak = 0;
     }
 
     _records.add(
@@ -164,7 +162,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
   void _endExamEarly() {
     _cancelTimer();
-    // Fill all remaining unrecorded questions as skipped
     while (_records.length < widget.questions.length) {
       final nextQ = widget.questions[_records.length];
       _records.add(
@@ -207,8 +204,15 @@ class _QuizScreenState extends State<QuizScreen> {
       answers: _records,
     );
 
-    // Save history statistics in provider
-    context.read<QuizProvider>().recordQuizResult(result);
+    final auth = context.read<AuthProvider>();
+    final quizProvider = context.read<QuizProvider>();
+    final uid = quizProvider.subscriberMobile ?? auth.userMobile ?? auth.userEmail ?? auth.user?.uid ?? 'guest';
+    final userName = auth.userName ?? 'Prostuti Examinee';
+    final userEmail = auth.userEmail ?? uid;
+
+    // Save exam result to Firestore so History & Leaderboard work immediately
+    FirestoreService().saveExamResult(uid, userName, userEmail, result);
+    quizProvider.recordQuizResult(result);
 
     context.go(
       AppRouter.result,
@@ -220,22 +224,18 @@ class _QuizScreenState extends State<QuizScreen> {
     return _tempSelectedIndex == index ? AnswerState.selected : AnswerState.neutral;
   }
 
-  static const List<String> _letters = ['A', 'B', 'C', 'D'];
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLast = _currentIndex == widget.questions.length - 1;
     final progress = (_currentIndex + 1) / widget.questions.length;
 
-    // Timer circle color based on remaining time
     final timerColor = _timeLeft > 8
         ? (isDark ? const Color(0xFF6366F1) : AppTheme.primaryBlue)
         : _timeLeft > 3
             ? AppTheme.warningAmber
             : AppTheme.errorRed;
 
-    // Skip/Next Button label configuration
     String nextLabel;
     IconData nextIcon;
     if (_tempSelectedIndex == null) {
@@ -250,7 +250,6 @@ class _QuizScreenState extends State<QuizScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // --- TOP HEADER APP BAR ---
             Container(
               color: isDark ? const Color(0xFF0F172A) : AppTheme.primaryBlue,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -313,7 +312,6 @@ class _QuizScreenState extends State<QuizScreen> {
               ),
             ),
 
-            // --- ANIMATED PROGRESS BAR ---
             LinearProgressIndicator(
               value: progress,
               backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
@@ -326,11 +324,9 @@ class _QuizScreenState extends State<QuizScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    // --- STATUS ROW (Score, Streak, Timer) ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Points
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
@@ -353,7 +349,6 @@ class _QuizScreenState extends State<QuizScreen> {
                           ),
                         ),
 
-                        // Animated Circular Timer
                         Stack(
                           alignment: Alignment.center,
                           children: [
@@ -378,7 +373,6 @@ class _QuizScreenState extends State<QuizScreen> {
                           ],
                         ),
 
-                        // Streak
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
@@ -414,7 +408,6 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // --- QUESTION CARD ---
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(24),
@@ -435,7 +428,6 @@ class _QuizScreenState extends State<QuizScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Tag row
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -468,7 +460,6 @@ class _QuizScreenState extends State<QuizScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Question Text
                           Text(
                             'Q${_currentIndex + 1}. ${_currentQuestion.text}',
                             style: TextStyle(
@@ -481,14 +472,13 @@ class _QuizScreenState extends State<QuizScreen> {
                           ),
                           const SizedBox(height: 24),
 
-                          // Options
                           ...List.generate(
                             _currentQuestion.options.length,
                             (i) => Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: AnswerButton(
                                 label: _currentQuestion.options[i],
-                                optionLetter: _letters[i],
+                                optionLetter: String.fromCharCode(65 + i),
                                 state: _stateForOption(i),
                                 onTap: () => _selectAnswer(i),
                               ),
@@ -499,10 +489,8 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // --- CONTROLS SECTION ---
                     Row(
                       children: [
-                        // End Exam Button (Outlined, Red themed for alert status)
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: _showEndExamDialog,
@@ -529,7 +517,6 @@ class _QuizScreenState extends State<QuizScreen> {
                           ),
                         ),
                         const SizedBox(width: 14),
-                        // Skip / Next Button
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: _proceedWithAnswer,

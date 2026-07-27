@@ -17,7 +17,7 @@ class Question {
     this.explanation,
   });
 
-  String get correctAnswer => options[correctIndex];
+  String get correctAnswer => (correctIndex >= 0 && correctIndex < options.length) ? options[correctIndex] : '';
 }
 
 enum Difficulty { easy, medium, hard }

@@ -373,6 +373,7 @@ class _ResultScreenState extends State<ResultScreen>
           final record = widget.result.answers[i];
           final question = widget.questions.firstWhere(
             (q) => q.id == record.questionId,
+            orElse: () => Question(id: record.questionId, text: 'Question not found', options: ['N/A', 'N/A', 'N/A', 'N/A'], correctIndex: 0, category: 'Unknown'),
           );
           return ReviewCard(index: i, question: question, record: record);
         }),
