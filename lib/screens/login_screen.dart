@@ -555,7 +555,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextFormField(
                         controller: _passwordCtrl,
                         obscureText: !_isPasswordVisible,
-                        keyboardType: TextInputType.text,
+                        keyboardType: TextInputType.emailAddress,
                         autofillHints: const [AutofillHints.password],
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         decoration: InputDecoration(
@@ -650,7 +650,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextFormField(
                         controller: _newPasswordCtrl,
                         obscureText: !_isPasswordVisible,
-                        keyboardType: TextInputType.text,
+                        keyboardType: TextInputType.emailAddress,
                         autofillHints: const [AutofillHints.newPassword],
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         decoration: InputDecoration(
