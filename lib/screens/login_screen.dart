@@ -29,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String _cleanMobile = '';
   String _referenceNo = '';
-  bool _isPasswordVisible = false;
+  bool _isPasswordVisible = true;
 
   @override
   void dispose() {
@@ -555,13 +555,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextFormField(
                         controller: _passwordCtrl,
                         obscureText: !_isPasswordVisible,
-                        keyboardType: TextInputType.text,
+                        keyboardType: TextInputType.visiblePassword,
+                        enableSuggestions: false,
+                        autocorrect: false,
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         decoration: InputDecoration(
                           labelText: 'Password',
                           prefixIcon: const Icon(Icons.lock_rounded, color: Color(0xFFE11D48)),
                           suffixIcon: IconButton(
-                            icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                            icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
                             onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                           ),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -649,13 +651,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextFormField(
                         controller: _newPasswordCtrl,
                         obscureText: !_isPasswordVisible,
-                        keyboardType: TextInputType.text,
+                        keyboardType: TextInputType.visiblePassword,
+                        enableSuggestions: false,
+                        autocorrect: false,
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         decoration: InputDecoration(
                           labelText: 'Create Password',
                           prefixIcon: const Icon(Icons.key_rounded, color: Color(0xFFE11D48)),
                           suffixIcon: IconButton(
-                            icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                            icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
                             onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                           ),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
