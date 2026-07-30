@@ -32,8 +32,8 @@ class _QuizScreenState extends State<QuizScreen> {
   int _maxStreak = 0;
 
   Timer? _timer;
-  int _timeLeft = 15;
-  static const int _maxTime = 15;
+  int _timeLeft = 60;
+  static const int _maxTime = 60;
 
   Question get _currentQuestion => widget.questions[_currentIndex];
 
